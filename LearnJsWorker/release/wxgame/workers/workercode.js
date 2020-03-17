@@ -1,65 +1,3 @@
-var workerconfig = require('./workerconfig');
-console.log(workerconfig);
-var isMiniGame = workerconfig.IsWxgame;
-console.log("isMiniGame", isMiniGame);
-console.log("workercod>>  this=", this)
-console.log("workercod>>  this.constructor=", this.constructor);
-console.log("workercod>>  this.worker=", this.worker);
-console.log("workercod>>  worker=", worker);
-
-
-class MWorker 
-{
-    static Create(scriptPath, name = "worker") {
-        var worker;
-        if (isMiniGame) {
-            worker = wx.createWorker(scriptPath);
-        }
-        else {
-            worker = new Worker(scriptPath);
-        }
-        return new MWorker(worker, name);
-    }
-    constructor(worker, name = "worker") {
-        this.worker = worker;
-        this.name = name;
-    }
-  onMessage(callback) {
-    console.log(this.name,"=====");
-    console.log(this.name, "this=", this);
-    console.log(this.name, "this.worker=", this.worker);
-    console.log(this.name, "this.worker.onmessage=", this.worker.onmessage);
-    console.log(this.name, "this.worker.onMessage=", this.worker.onMessage);
-        if (isMiniGame) {
-
-          // this.worker.onmessage = (event) => {
-          //   console.log(this.name, "onMessage", event);
-          //   //this.postMessage(event);
-          // };
-          this.worker.onMessage((result) => {
-              console.log(this.name, "onMessage", result);
-              this.postMessage(result);
-            });
-        }
-        else {
-            this.worker.onmessage = (event) => {
-              console.log(this.name, "onMessage", event);
-              //this.postMessage(event);
-            };
-        }
-    }
-    postMessage(data) {
-        if (isMiniGame) {
-            this.worker.postMessage(data);
-        }
-        else {
-            this.worker.postMessage(data);
-        }
-    }
-    terminate() {
-        this.worker.terminate();
-    }
-}
 
 
 
@@ -70,27 +8,47 @@ var CmdType =
 }
 
 
-var mainWorker = new MWorker(isMiniGame ? worker : this, "WorkerCode");
-mainWorker.onMessage((...args)=>
+var mainWorker = new MWorker(this.worker ? this.worker : this, "WorkerCode");
+mainWorker.onMessage((msg)=>
 {
-    console.log(args);
+    switch(msg.cmd)
+    {
+        case CmdType.Start:
+            console.log(Date.now(), "workercode onMessage >>", msg);
+            mainWorker.postMessage(msg);
+            lastT = Date.now();
+            setInterval(update, 16);
+            break;
+    }
 });
 
 
 
-
 class UnitData {
-  constructor() {
-    this.id = 0;
-    this.x = 0;
-    this.y = 0;
-    this.speed = 1;
-    this.time = 0;
-  }
-  update(dt) {
-    this.time += dt;
-    this.x += dt * this.speed;
-  }
+    constructor() {
+        this.id = 0;
+        this.x = 0;
+        this.y = 0;
+        this.speed = 0.01;
+        this.time = 0;
+    }
+    update(dt) {
+        this.time += dt;
+        this.x += dt * this.speed;
+        if(this.x > 5 || this.x < -5)
+        {
+            this.speed *= -1;
+        }
+    }
 }
 
-console.log("Hello");
+var unit = new UnitData();
+unit.y = -3;
+var lastT = Date.now();
+function update()
+{
+    var delta = Date.now() - lastT;
+    lastT = Date.now();
+    unit.update(delta);
+    mainWorker.postMessage({cmd: CmdType.TickData, unit: unit, time: lastT, delta: delta})
+}

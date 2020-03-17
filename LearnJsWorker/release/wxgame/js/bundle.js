@@ -19,59 +19,20 @@
         })(test = ui.test || (ui.test = {}));
     })(ui || (ui = {}));
 
-    class MWorker {
-        static Create(scriptPath, name = "worker") {
-            var worker;
-            if (Laya.Browser.onMiniGame) {
-              worker = wx.createWorker(scriptPath);
-            }
-            else {
-                worker = new Worker(scriptPath);
-            }
-          console.log(worker);
-            
-            return new MWorker(worker, name);
-        }
-        constructor(worker, name = "worker") {
-            this.worker = worker;
-            this.name = name;
-        }
-        onMessage(callback) {
-            if (Laya.Browser.onMiniGame) {
-                this.worker.onMessage((result) => {
-                    console.log(this.name, "onMessage", result);
-                });
-            }
-            else {
-                this.worker.onmessage = (event) => {
-                    console.log(this.name, "onMessage", event);
-                };
-            }
-        }
-      postMessage(data, transferList = undefined) {
-            if (Laya.Browser.onMiniGame) {
-              this.worker.postMessage(data);
-            }
-            else {
-              this.worker.postMessage(data, transferList);
-            }
-        }
-        terminate() {
-            this.worker.terminate();
-        }
-    }
-
     class UnitData {
         constructor() {
             this.id = 0;
             this.x = 0;
             this.y = 0;
-            this.speed = 1;
+            this.speed = 0.01;
             this.time = 0;
         }
         update(dt) {
             this.time += dt;
             this.x += dt * this.speed;
+            if (this.x > 5 || this.x < -5) {
+                this.speed *= -1;
+            }
         }
     }
 
@@ -81,35 +42,73 @@
     };
     class MainCode {
         constructor(scene) {
-          this.worker = MWorker.Create("workers/workercode.js", "MainCode");
-          console.log(this.worker);
-          window['mainCode'] = this;
-          window['worker'] = this.worker;
+            this.lastT = Date.now();
+            this.t = 0;
+            this.isStarted = false;
+            this.postUseTime = 0;
+            this.workerFrameDelta = 0;
+            this.worker = MWorker.Create("workers/index.js", "MainCode");
             this.worker.onMessage(this.onMessage.bind(this));
+            window['mainCode'] = this;
+            window['worker'] = this.worker;
             var box = new Laya.MeshSprite3D(Laya.PrimitiveMesh.createBox(1, 1, 1));
+            box.transform.localPositionY = 1;
             scene.addChild(box);
             this.boxMain = box;
             var box = new Laya.MeshSprite3D(Laya.PrimitiveMesh.createBox(1, 1, 1));
+            box.transform.localPositionY = 2;
             scene.addChild(box);
             this.boxWorker = box;
             this.unitMain = new UnitData();
             this.unitWorker = new UnitData();
+            this.text = new Laya.Text();
+            this.text.fontSize = 25;
+            this.text.align = "left";
+            this.text.width = 300;
+            this.text.height = 300;
+            this.text.y = 50;
+            this.text.x = (Laya.stage.width - this.text.width) * 0.5;
+            Laya.stage.addChild(this.text);
+            console.log(Date.now(), "发送第一给消息");
+            this.t = Date.now();
+            this.worker.postMessage({ cmd: CmdType.Start });
             Laya.timer.frameLoop(1, this, this.onUpdate);
-
-            setTimeout(()=>{
-
-              console.log("发送消息");
-              this.worker.postMessage({ cmd: CmdType.Start });
-              var buff = new ArrayBuffer(100);
-              this.worker.postMessage({ cmd: CmdType.TickData, buff: buff }, [buff]);
-            }, 500);
+        }
+        update() {
+            var delta = Date.now() - this.lastT;
+            this.lastT = Date.now();
+            if (this.isStarted) {
+                this.unitMain.update(delta);
+                this.boxMain.transform.localPositionX = this.unitMain.x;
+                this.boxWorker.transform.localPositionX = this.unitWorker.x;
+            }
+            this.text.text = "传送时间花费: " + this.postUseTime + "ms\n"
+                + "MainCode.delta: " + delta + "ms\n"
+                + "WorkerCode.delta: " + this.workerFrameDelta + "ms\n";
         }
         onUpdate() {
-            this.unitMain.update(Laya.timer.delta);
-            this.boxMain.transform.localPositionX = this.unitMain.x;
-            this.boxWorker.transform.localPositionX = this.unitWorker.x;
+            if (this.isStarted) {
+                this.unitMain.update(Laya.timer.delta);
+                this.boxMain.transform.localPositionX = this.unitMain.x;
+                this.boxWorker.transform.localPositionX = this.unitWorker.x;
+            }
+            this.text.text = "传送时间花费: " + this.postUseTime + "ms\n"
+                + "Laya.timer.delta: " + Laya.timer.delta + "ms\n"
+                + "Worker.delta: " + this.workerFrameDelta + "ms\n";
         }
-        onMessage() {
+        onMessage(msg) {
+            switch (msg.cmd) {
+                case CmdType.Start:
+                    console.log(Date.now() - this.t);
+                    console.log(Date.now(), "MainCode onMessage >>", msg);
+                    this.isStarted = true;
+                    break;
+                case CmdType.TickData:
+                    this.unitWorker = msg.unit;
+                    this.postUseTime = Date.now() - msg.time;
+                    this.workerFrameDelta = msg.delta;
+                    break;
+            }
         }
     }
 
@@ -150,7 +149,7 @@
     GameConfig.startScene = "test/TestScene.scene";
     GameConfig.sceneRoot = "";
     GameConfig.debug = false;
-    GameConfig.stat = false;
+    GameConfig.stat = true;
     GameConfig.physicsDebug = false;
     GameConfig.exportSceneToJson = true;
     GameConfig.init();

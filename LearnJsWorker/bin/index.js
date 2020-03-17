@@ -12,6 +12,5 @@ loadLib("libs/laya.core.js");
 loadLib("libs/laya.ui.js");
 loadLib("libs/laya.d3.js")//-----libs-end-------
 
-loadLib("workers/WorkerConfig.js");
-loadLib("workers/MWorker.js");
+loadLib("js/MWorker.js");
 loadLib("js/bundle.js");
