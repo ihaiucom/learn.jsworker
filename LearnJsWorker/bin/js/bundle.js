@@ -104,7 +104,7 @@
                     this.isStarted = true;
                     break;
                 case CmdType.TickData:
-                    this.unitWorker = msg.unit;
+                    this.unitWorker = msg.unitList[0];
                     this.postUseTime = Date.now() - msg.time;
                     this.workerFrameDelta = msg.delta;
                     break;
@@ -140,8 +140,8 @@
             reg("script/GameUI.ts", GameUI);
         }
     }
-    GameConfig.width = 640;
-    GameConfig.height = 1136;
+    GameConfig.width = 1334;
+    GameConfig.height = 750;
     GameConfig.scaleMode = "fixedwidth";
     GameConfig.screenMode = "none";
     GameConfig.alignV = "top";

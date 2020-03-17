@@ -42,13 +42,26 @@ class UnitData {
     }
 }
 
-var unit = new UnitData();
+var unitList = [];
+for(var i = 0; i < 100; i ++)
+{
+    var item = new UnitData();
+    item.id = i;
+    unitList.push(item);
+}
+
+var unit = unitList[0]
 unit.y = -3;
 var lastT = Date.now();
 function update()
 {
+  var n = 0;
+  for(var i = 0; i < 10000; i ++)
+  {
+    n += i;
+  }
     var delta = Date.now() - lastT;
     lastT = Date.now();
     unit.update(delta);
-    mainWorker.postMessage({cmd: CmdType.TickData, unit: unit, time: lastT, delta: delta})
+    mainWorker.postMessage({cmd: CmdType.TickData, unitList: unitList, time: lastT, delta: delta})
 }

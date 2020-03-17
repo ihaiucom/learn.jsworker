@@ -114,7 +114,7 @@ update()
                 this.isStarted = true;
                 break;
             case CmdType.TickData:
-                this.unitWorker = msg.unit;
+                this.unitWorker = msg.unitList[0];
                 this.postUseTime =Date.now() - msg.time;
                 this.workerFrameDelta = msg.delta;
                 break;
